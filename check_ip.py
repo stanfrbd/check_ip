@@ -21,6 +21,8 @@ import json
 import time
 from bs4 import BeautifulSoup
 from prettytable import PrettyTable
+import csv
+from spur_us_api import process_ip_with_spur
 
 # disable ssl warning in case of proxy like Zscaler which breaks ssl...
 requests.packages.urllib3.disable_warnings()
@@ -67,6 +69,13 @@ def process_ip(ip):
     ipinfo_data = get_ipinfo(ip)
     ipinfo_json = json.loads(ipinfo_data.text)
 
+    try:
+        spur_ip = process_ip_with_spur(ip)["tunnels"]
+        if spur_ip == "":
+            spur_ip = "Not anonymous"
+    except:
+        spur_ip = "Not found"
+
     data = {
         "IP": ip,
         "City": ipinfo_json['city'],
@@ -76,7 +85,7 @@ def process_ip(ip):
         "ISP": ipinfo_json['org'],
         "Postal": ipinfo_json['postal'],
         "Timezone": ipinfo_json['timezone'],
-        "VPN Vendor (Spur)": get_spur(ip)
+        "VPN Vendor (Spur)": spur_ip  #get_spur(ip)
     }
 
     table = PrettyTable()
@@ -90,11 +99,22 @@ def process_ip(ip):
 
     return data
 
+def write_to_csv(results, output_file):
+    with open(output_file, mode='w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        for result in results:
+            writer.writerow(result)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get IP information')
     parser.add_argument('-a', '--ip-address', dest='ip', help='IP address to check')
     parser.add_argument('-i', '--input-file', dest='input_file', help='File containing IP addresses to check')
+    parser.add_argument('-o', '--output-file', dest='output_file', default='report.csv', help='Output CSV file')
     args = parser.parse_args()
+
+    results = []
+
     try: 
         if args.ip:
             process_ip(args.ip)
@@ -102,8 +122,13 @@ if __name__ == '__main__':
             with open(args.input_file, 'r') as f:
                 for line in f:
                     ip = line.strip()
-                    process_ip(ip)
-                    time.sleep(3)
+                    result = process_ip(ip)
+                    results.append(result)
+                    #time.sleep(3)
+
+        if results:
+            write_to_csv(results, args.output_file)
+            print(f"Report written to {args.output_file}")
 
     except Exception as err:
         print("General error: " + str(err)) 

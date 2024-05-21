@@ -18,7 +18,7 @@ pip install -r requirements.txt
 cp secrets-sample.json secrets.json
 ```
 
-* Fill the required values (including proxy if needed) in the `secrets.json` file.
+* Fill the optionnal values (including proxy if needed) in the `secrets.json` file. This values will be useful for `spur_us_api.py` script. It is optional to fill the `ipinfo_token` value, but it is recommended to fill it to avoid rate limit.
 
 ```json
 {

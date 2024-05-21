@@ -20,6 +20,7 @@ import argparse
 import json
 import time
 import jwt
+import csv
 
 # disable ssl warning in case of proxy like Zscaler which breaks ssl...
 requests.packages.urllib3.disable_warnings()
@@ -105,7 +106,7 @@ def get_token():
         print("Échec de la requête pour obtenir le token JWT. Statut de la réponse :", token_response.status_code)
         return None
 
-def process_ip(ip):
+def process_ip_with_spur(ip):
     
 
     # Variables
@@ -136,23 +137,69 @@ def process_ip(ip):
     # Requête
     response = requests.get(url, proxies=proxies, headers=headers, verify=False)
 
-    # Affichage du résultat
-    print(response.text)
+    # Traitement de la réponse et extraction des informations pertinentes
+    if response.status_code == 200:
+        data = response.json().get('data', {})
+        v2 = data.get('v2', {})
+        location = v2.get('location', {})
+        client = v2.get('client', {})
+
+        return {
+            "ip": v2.get("ip", ""),
+            "organization": v2.get("organization", ""),
+            "city": location.get("city", ""),
+            "country": location.get("country", ""),
+            "state": location.get("state", ""),
+            "infrastructure": v2.get("infrastructure", ""),
+            "risks": ", ".join(v2.get("risks", [])),
+            "client_types": ", ".join(client.get("types", [])),
+            "client_behaviors": ", ".join(client.get("behaviors", [])),
+            "client_proxies": ", ".join(client.get("proxies", [])),
+            "tunnels": ", ".join([tunnel.get("operator", "") for tunnel in v2.get("tunnels", [])])
+        }
+    else:
+        print(f"Failed to process IP {ip_address}. Status code: {response.status_code}")
+        return None
+
+def write_to_csv(results, output_file):
+    # Champs pour le fichier CSV
+    fields = ["ip", "organization", "city", "country", "state", "infrastructure", "risks", "client_types", "client_behaviors", "client_proxies", "tunnels"]
+
+    with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+        csvwriter = csv.DictWriter(csvfile, fieldnames=fields)
+        
+        # Écriture des en-têtes
+        csvwriter.writeheader()
+        
+        # Écriture des données
+        for result in results:
+            if result:
+                csvwriter.writerow(result)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get IP information using spur.us')
     parser.add_argument('-a', '--ip-address', dest='ip', help='IP address to check')
     parser.add_argument('-i', '--input-file', dest='input_file', help='File containing IP addresses to check')
+    parser.add_argument('-o', '--output-file', dest='output_file', default='report.csv', help='Output CSV file')
     args = parser.parse_args()
+
+    results = []
+
     try: 
         if args.ip:
-            process_ip(args.ip)
+            process_ip_with_spur(args.ip)
         elif args.input_file:
             with open(args.input_file, 'r') as f:
                 for line in f:
                     ip = line.strip()
-                    process_ip(ip)
+                    result = process_ip_with_spur(ip)
+                    results.append(result)
+                    print(f"Processed IP: {ip}")
                     time.sleep(3)
+
+        if results:
+            write_to_csv(results, args.output_file)
+            print(f"Report written to {args.output_file}")
 
     except Exception as err:
         print("General error: " + str(err)) 
