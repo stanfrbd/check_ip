@@ -1,0 +1,6 @@
+requests
+openpyxl
+argparse
+bs4
+prettytable
+jwt
