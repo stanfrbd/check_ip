@@ -22,7 +22,7 @@ cp secrets-sample.json secrets.json
 
 ```json
 {
-    "spur_user": "youruser@example.com",
+    "spur_email": "youruser@example.com",
     "spur_password": "yourpassword",
     "ipinfo_token": "token",
     "proxy_url": ""
