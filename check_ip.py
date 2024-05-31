@@ -83,7 +83,7 @@ def process_ip(ip):
         "Country": ipinfo_json['country'],
         "Location": ipinfo_json['loc'],
         "ISP": ipinfo_json['org'],
-        "Postal": ipinfo_json['postal'],
+        "Postal": ipinfo_json['postal'] if 'postal' in ipinfo_json else "Unknown",
         "Timezone": ipinfo_json['timezone'],
         "VPN Vendor (Spur)": spur_ip  #get_spur(ip)
     }
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                     ip = line.strip()
                     result = process_ip(ip)
                     results.append(result)
-                    #time.sleep(3)
+                    time.sleep(1)
 
         if results:
             write_to_csv(results, args.output_file)
